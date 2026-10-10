@@ -49,3 +49,31 @@ stored-energy value is zero. Profit and degradation use M1's grid-side accountin
 This rule uses an average sale value rather than scheduling future dispatch; it
 ignores future power bottlenecks, the order of prices, and later opportunities to
 buy. It is intentionally a simple comparison baseline, not a claim of optimality.
+
+## Forecast optimizer
+
+`ForecastOptimizer` performs receding-horizon search over the shared feasible
+candidate menu at every projected state. It maximizes the sum of forecast net
+profits (market revenue minus degradation), conditional on minimizing the current
+reserve shortfall. Only the first action is sent to the runner; a new forecast
+and actual state produce a new plan next hour. A local memo caches subproblems by
+horizon index and exact stored energy; no rounded state grid or interpolated
+physics is used. It permits only one signed action per step, preventing fictitious
+simultaneous charging/discharging at negative prices.
+
+Terminal energy has **zero value** in the planning objective. This can encourage
+selling initial inventory or draining near the forecast horizon, and it should
+not be confused with sustainable long-run arbitrage returns. `plan(observation)`
+returns the candidate actions and their **forecast** profit for inspection.
+Realized performance always comes from the episode runner, never that projection.
+
+The optimizer is optimal over its finite, state-dependent candidate tree using
+floating-point M1 accounting, not over all continuous actions. Default horizon is
+four; the cap of six and maximum three power fractions bound combinatorial work.
+Coarse candidates can miss profitable intermediate powers. Different information
+horizons, inaccurate forecasts, unknown future commitments, and zero terminal
+value can all limit performance. It is neither an oracle nor a theoretical upper
+bound, and it is not guaranteed to outperform the heuristic in realized profit.
+An oracle, if added later, must be a separately named result with an explicit
+future-information label; it must never replace this deployable-information
+baseline in ordinary comparisons.
