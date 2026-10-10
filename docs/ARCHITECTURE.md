@@ -79,3 +79,22 @@ Python 3.11+, dataclasses or Pydantic for model boundaries, pytest, Ruff, simple
 ## Security and scope
 
 This is an offline simulation experiment, not a validated industrial safety system or live equipment controller.
+
+## M2 implementation
+
+`scenario.py` validates immutable version-1 hourly scenarios and strict JSON.
+`runner.py` owns the `Controller` protocol, published observation frames, episode
+traces/metrics, the hold demo controller, and replay. The execution path is
+scenario → current observation → requested action → M1 `step` → trace and totals.
+M1 remains the only physical transition and hard-constraint boundary.
+
+Each forecast row is published at its row's hour and begins with a forecast for
+that hour. History contains only previous published frames; realized future
+prices and unpublished rows never enter observations. There is no physical
+disturbance model in M2. The runner provides an episode-local seeded RNG.
+
+Reserves are post-step minimum stored-energy commitments. Misses add evidence
+without changing the physical result. JSON episode import reruns recorded
+requests, then compares all observations, outcomes, and metrics. Static simulator
+and schema versions plus caller-supplied controller identity accompany the full
+scenario; timestamps are excluded from deterministic episode artifacts.

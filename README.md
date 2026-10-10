@@ -22,10 +22,133 @@ Under an equal simulation budget, targeted scenario search can discover **distin
 
 See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](docs/PRD.md), [Architecture](docs/ARCHITECTURE.md), and [Codex Instructions](AGENTS.md).
 
-## Day-one goal
+## Current milestone
 
-Implement the pure Python BESS simulator with deterministic tests. No LLM, frontend, database server, or cloud infrastructure is required for this milestone.
+M2 adds versioned scenario fixtures, deterministic hourly episodes, and replayable
+JSON evidence around the tested battery simulator. No LLM, frontend, database
+server, or cloud infrastructure is required.
+
+## Quick start
+
+Requires Python 3.11 or newer. The simulation has no runtime dependencies.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest
+ruff check .
+```
+
+```python
+from trialgrid import Action, BatteryConfig, BatteryState, StepInput, step
+
+config = BatteryConfig(
+    capacity_kwh=100,
+    energy_floor_kwh=10,
+    energy_ceiling_kwh=90,
+    max_charge_kw=20,
+    max_discharge_kw=20,
+    eta_charge=0.9,
+    eta_discharge=0.8,
+    dt_h=0.5,
+    degradation_eur_per_kwh=0.01,
+)
+result = step(config, BatteryState(50), Action(16), StepInput(100))
+assert result.state.energy_kwh == 40
+assert result.applied_action == Action(16)
+assert result.violations == ()
+```
+
+Power is grid-side kW: positive discharges, negative charges, and zero holds.
+Energy is kWh; prices are EUR/MWh. Degradation is charged on absolute grid-side
+throughput, not cell-side throughput. Inputs are immutable and each call returns
+a new result. Infeasible finite commands apply hold, retain the requested action,
+and report all violated power/energy limits; they earn no revenue or degradation
+cost. Malformed inputs and invalid starting states raise `ValueError`.
+
+Physical comparisons are strict, with no clipping or tolerance-based acceptance.
+Leave numerical headroom when computing boundary commands in floating point.
+Nonfinite input values are invalid; arithmetic that cannot produce finite
+accounting raises `ValueError`.
+
+## Run a complete episode
+
+After installing the project with the quick start above:
+
+```bash
+python examples/run_hold.py --output /tmp/hold_episode.json
+```
+
+The sample in `examples/scenarios/hold_24h.json` is an illustrative, hand-authored
+24-hour fixture, not market data or an experimental result. Hold keeps 50 kWh,
+earns zero revenue, incurs zero degradation cost, and misses the four 60 kWh
+reserve commitments. The demo exports the full trace and verifies action replay.
+
+```python
+from pathlib import Path
+from trialgrid import Episode, HoldController, Scenario, replay_episode, run_episode
+
+scenario = Scenario.from_json(Path("examples/scenarios/hold_24h.json").read_text())
+episode = run_episode(
+    scenario, HoldController(), controller_name="hold", controller_version="1"
+)
+restored = Episode.from_json(episode.to_json())
+assert restored == replay_episode(episode) == episode
+assert Scenario.from_json(scenario.to_json()) == scenario
+```
+
+### Scenario and observation contract
+
+Schema version 1 requires a battery configuration, initial state, unsigned 64-bit
+integer seed, and three equal-length, nonempty hourly timelines:
+
+- `prices_eur_per_mwh`: realized prices, including negative prices.
+- `forecast_prices_eur_per_mwh`: one forecast row published at the start of each
+  hour. Row `t` starts with a prediction for hour `t`, followed by predictions
+  for subsequent hours, up to the remaining horizon. Empty rows mean no forecast.
+- `reserve_requirements_kwh`: minimum post-step stored energy, between zero and
+  capacity. Requirements above the usable energy ceiling are allowed to describe
+  impossible commitments; the runner does not classify their preventability.
+
+Scenario `dt_h` must be exactly 1; M1's standalone `step` still supports other
+positive durations. JSON import rejects unsupported versions, missing/unknown
+fields, duplicate keys, nonfinite values, invalid seeds, and inconsistent timelines.
+
+A controller implements `act(observation: Observation, rng: random.Random) -> Action`.
+`observation.current` contains the hour index, starting state, current realized
+price, current reserve requirement, and only the forecast published this hour.
+`observation.history` contains prior immutable observation frames; `config` supplies
+static battery limits. Future realized prices, future reserve requirements, future
+forecast publications, the scenario, and the seed are not passed to the controller.
+Forecast data is supplied explicitly, never synthesized from future actual prices.
+There is no separate physical disturbance model in M2. This is an information
+boundary for cooperative controllers, not a sandbox for hostile Python code.
+
+Each run creates its own RNG from the scenario seed, leaving global randomness
+untouched. Use the supplied RNG for repeatability, and construct/reset stateful
+controllers for each new episode. Recorded-action replay needs no live controller.
+
+### Evidence and reserves
+
+Every step records its observation (including prior observations), starting state,
+requested/applied action, ending state, physical violations, energy flows, revenue,
+degradation cost, profit, and reserve shortfall. Physical violations retain M1's
+hold-on-rejection policy. Reserve shortfalls are checked **after** the transition,
+recorded as `reserve_shortfall`, and never change state or override an action.
+Episode metrics sum revenue, degradation cost, and profit and count rejected
+actions and reserve misses. Nonfinite aggregate accounting raises `ValueError`.
+
+Episode JSON contains the full scenario/seed, controller name/version supplied by
+the caller, episode schema version, and simulator version. No wall-clock timestamp
+is included, so identical runs export identical JSON. Import/replay recomputes the
+full trace from recorded **requested** actions and rejects inconsistent evidence;
+it checks internal consistency, not artifact authenticity. Malformed controller
+returns raise an error rather than silently becoming hold actions.
 
 ## Status
 
-Planning and engineering specification. No experimental results have been produced yet.
+M0–M2 provide the project foundation, deterministic battery core, versioned
+scenarios, episode runner, and JSON trace replay. Only a hold demonstration
+controller is included. Baselines, optimization, LLM controllers, search, and
+API/frontend remain later milestones. No experimental results have been produced.

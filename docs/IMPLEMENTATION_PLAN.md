@@ -3,12 +3,23 @@
 Work in small PR-sized increments. For each milestone write tests, run them, summarize outcomes, and update this plan.
 
 ## M0 — Repository foundation
+**Status:** Complete (issue #1). Added src-layout packaging, development dependencies,
+README quick start and Python 3.11/3.12 lint/test CI; retained the existing standard
+`.gitignore`. Validated locally on Python 3.12; CI has not yet run remotely.
+
 - Add `pyproject.toml` for Python 3.11+ with package under `src/`, pytest and Ruff.
 - Add standard `.gitignore`, a focused README quick start, and test layout.
 - Add CI running lint and tests when it becomes useful.
 **Done when:** `python -m pytest` and `ruff check .` succeed locally, including at least one meaningful unit test.
 
 ## M1 — Deterministic battery simulator (FIRST IMPLEMENTATION TASK)
+**Status:** Complete (issue #2). Immutable typed models and a pure step transition
+implement signed grid power, distinct efficiencies, strict physical rejection,
+requested/applied evidence and per-step accounting. Tests cover numerical
+transitions, boundaries, validation, overflow, immutability and repeatability.
+Validation: `python -m pytest` and `ruff check .` in the project virtual environment.
+Reserve timelines and scenario/runner work remain deferred to M2.
+
 - Typed `BatteryConfig`, `BatteryState`, `Action`, `StepInput`, `StepResult`.
 - Explicit signed power convention and `dt_h`.
 - Implement charge/discharge/hold with efficiencies, physical bounds, power limits and separate requested/applied actions.
@@ -18,6 +29,30 @@ Work in small PR-sized increments. For each milestone write tests, run them, sum
 **Done when:** test suite asserts exact transitions within numerical tolerances and input validation rejects invalid parameters.
 
 ## M2 — Scenarios + runner
+**Status:** Complete locally (issue #3), ready for PR review. Added immutable
+version-1 hourly scenarios, strict JSON validation, per-publication forecast rows,
+reserve timelines and a 64-bit seed. The typed controller protocol receives only
+current/past published observations and an episode-local RNG. M1 owns physical
+transitions; post-step reserve shortfalls are recorded separately. Full episode
+JSON includes observations, requested/applied actions, states, energy flows,
+accounting, violations and aggregate metrics. Import/replay recomputes all
+recorded requests and rejects inconsistent evidence. A hand-authored 24-hour
+fixture and hold-controller CLI demo are included.
+
+Validation on Python 3.12.3:
+- `.venv/bin/python -m pytest tests/test_scenarios.py`: 97 passed.
+- `.venv/bin/python -m pytest tests/test_runner.py -q`: 22 passed.
+- `.venv/bin/python -m pytest`: 266 passed, including all 147 existing tests.
+- `.venv/bin/ruff check .`: all checks passed.
+- `.venv/bin/python -O examples/run_hold.py --output /tmp/trialgrid-m2-hold-episode.json`:
+  completed 24 hours, EUR 0.00 profit, four reserve misses, verified JSON replay.
+- `git diff --check`: passed. Remote CI has not yet been verified for M2.
+
+Limits: hourly scenario resolution; no physical disturbance model, failure
+classification, or wall-clock run timestamps. Replay verifies internal evidence
+consistency, not authenticity. Stateful controllers must be recreated/reset for
+new runs. M3 and all later features remain deferred pending explicit approval.
+
 - Validated versioned serializable scenarios, observed vs forecast prices, reserve requirement timeline, scenario seed.
 - Common controller protocol and deterministic episode runner returning full traces and metrics.
 - No lookahead: controller receives only permitted observations.
