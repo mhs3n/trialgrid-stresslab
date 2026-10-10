@@ -24,9 +24,9 @@ See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](d
 
 ## Current milestone
 
-M2 adds versioned scenario fixtures, deterministic hourly episodes, and replayable
-JSON evidence around the tested battery simulator. No LLM, frontend, database
-server, or cloud infrastructure is required.
+M3 adds a heuristic and a forecast-only optimization baseline on the same
+observation interface. Controller review comes before M4/LLM integration. No LLM,
+frontend, database server, or cloud infrastructure is included.
 
 ## Quick start
 
@@ -146,9 +146,44 @@ full trace from recorded **requested** actions and rejects inconsistent evidence
 it checks internal consistency, not artifact authenticity. Malformed controller
 returns raise an error rather than silently becoming hold actions.
 
+## Compare the M3 baselines
+
+```bash
+python examples/compare_baselines.py --output-dir /tmp/trialgrid-baselines
+```
+
+This runs `HeuristicController` and `ForecastOptimizer` on the same serialized
+scenario, using the same forecast horizon and action fractions. Both get only
+M2 observations; neither sees future realized prices, future reserve requirements,
+or later forecast publications. Forecast index zero is replaced by the known
+current price. Empty forecasts produce a current-hour decision.
+
+```python
+from trialgrid.controllers import BaselineConfig, ForecastOptimizer, HeuristicController
+
+settings = BaselineConfig(horizon=4, power_fractions=(0.5, 1.0))
+heuristic = HeuristicController(settings)
+optimizer = ForecastOptimizer(settings)
+```
+
+The heuristic values stored energy using the mean published future price. The
+optimizer searches feasible action sequences, executes only the first action,
+and replans next hour. It is a **finite-action forecast approximation**, with zero
+terminal energy value, not an oracle or a continuous optimum. Bad forecasts can
+make it perform worse than the heuristic. Both prioritize achievable current
+reserves; future commitments are unknown. There is no oracle controller in M3.
+
+The demo exports verified episode JSON plus `comparison.json` containing the
+shared configuration, information assumptions, realized metrics, and final stored
+energy. Keep this manifest with the episodes to reproduce the controller settings;
+the M2 episode schema remains unchanged. Results on the hand-authored fixture
+illustrate behavior only, not measured superiority across a scenario population.
+See [baseline contracts](docs/BASELINES.md) for objectives, limits, and ties, and
+[M3 review](docs/M3_REVIEW.md) for the checks performed before any LLM work.
+
 ## Status
 
-M0–M2 provide the project foundation, deterministic battery core, versioned
-scenarios, episode runner, and JSON trace replay. Only a hold demonstration
-controller is included. Baselines, optimization, LLM controllers, search, and
-API/frontend remain later milestones. No experimental results have been produced.
+M0–M3 provide the project foundation, deterministic battery core, versioned
+scenarios, episode runner/replay, and reviewed heuristic/forecast optimization
+baselines. M4/LLM work awaits explicit approval after review. Search and
+API/frontend remain later milestones; no population-level evaluation exists yet.

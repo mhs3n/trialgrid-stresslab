@@ -98,3 +98,21 @@ without changing the physical result. JSON episode import reruns recorded
 requests, then compares all observations, outcomes, and metrics. Static simulator
 and schema versions plus caller-supplied controller identity accompany the full
 scenario; timestamps are excluded from deterministic episode artifacts.
+
+## M3 implementation and comparison boundary
+
+`controllers/_planning.py` defines bounded shared configuration and M1-verified
+candidate actions. `heuristic.py` scores one-step profit plus an average forecast
+energy value. `optimizer.py` searches feasible trajectories using only the current
+published forecast; it executes the first action and replans next hour. Both
+implement the unchanged M2 protocol. No scenario object enters either controller.
+
+Current actual price supersedes forecast entry zero. Both prioritize achievable
+current post-step reserve, and neither assumes knowledge of later reserve rows.
+The optimizer assumes zero terminal energy value and optimizes a finite candidate
+tree, not continuous powers. It is not an oracle upper bound. Configuration and
+information assumptions accompany replayable episodes in the comparison manifest;
+M2 schemas and physical enforcement remain unchanged. See `docs/BASELINES.md`.
+
+M3 controller review is a gate before M4. No LLM controller, API, UI, search, or
+oracle has been added in this milestone.

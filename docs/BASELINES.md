@@ -77,3 +77,19 @@ bound, and it is not guaranteed to outperform the heuristic in realized profit.
 An oracle, if added later, must be a separately named result with an explicit
 future-information label; it must never replace this deployable-information
 baseline in ordinary comparisons.
+
+## Reproducible comparison evidence
+
+`examples/compare_baselines.py` creates fresh controllers using one shared
+`BaselineConfig`, runs both through the same M2 runner/scenario, and verifies both
+exported traces with recorded-action replay. `comparison.json` records the horizon,
+power fractions, information mode, reserve policy, zero terminal valuation,
+controller names/versions, realized accounting and final energy. Keep it beside
+the two episode files; the existing M2 episode schema is unchanged. The comparison
+uses realized simulator accounting and never substitutes `ForecastPlan` profit.
+
+These are offline policies under M2's assumption that the current price is known
+at dispatch. Published forecasts may be wrong. Performance is not an oracle bound,
+and equal information does not imply equal computation or equal realized outcomes.
+The heuristic performs one-step scoring; the optimizer spends more computation
+searching. Re-evaluate those costs when adding future agent controllers.

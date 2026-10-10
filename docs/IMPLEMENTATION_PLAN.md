@@ -29,7 +29,7 @@ Reserve timelines and scenario/runner work remain deferred to M2.
 **Done when:** test suite asserts exact transitions within numerical tolerances and input validation rejects invalid parameters.
 
 ## M2 — Scenarios + runner
-**Status:** Complete locally (issue #3), ready for PR review. Added immutable
+**Status:** Complete (issue #3); merged in PR #9. Added immutable
 version-1 hourly scenarios, strict JSON validation, per-publication forecast rows,
 reserve timelines and a 64-bit seed. The typed controller protocol receives only
 current/past published observations and an episode-local RNG. M1 owns physical
@@ -51,7 +51,7 @@ Validation on Python 3.12.3:
 Limits: hourly scenario resolution; no physical disturbance model, failure
 classification, or wall-clock run timestamps. Replay verifies internal evidence
 consistency, not authenticity. Stateful controllers must be recreated/reset for
-new runs. M3 and all later features remain deferred pending explicit approval.
+new runs. M3 was subsequently authorized; M4 and later features remain deferred.
 
 - Validated versioned serializable scenarios, observed vs forecast prices, reserve requirement timeline, scenario seed.
 - Common controller protocol and deterministic episode runner returning full traces and metrics.
@@ -59,6 +59,33 @@ new runs. M3 and all later features remain deferred pending explicit approval.
 **Done when:** fixture can be serialized, reloaded and replayed with identical traces for deterministic controller.
 
 ## M3 — Baselines
+**Status:** Implemented and locally reviewed, pending human PR review. Separate
+incremental commits add the heuristic, forecast-only optimizer, and comparison/
+review evidence. The existing M2 runner, observation contract and schema are unchanged.
+
+- `HeuristicController`: immediate net profit plus mean-forecast stored-energy value.
+- `ForecastOptimizer`: receding-horizon finite-action search, using current actual
+  price and only the current published forecast; no oracle or realized-price lookahead.
+- Shared configuration and M1-checked candidates, current-reserve priority, explicit
+  unknown future reserves, bounded forecast horizon and zero optimizer terminal value.
+- Same-scenario comparison exports replay-verified episodes and a manifest containing
+  controller settings, information assumptions, realized metrics and final energy.
+- Review: no outstanding actionable correctness/fairness findings; see
+  `docs/BASELINES.md` and `docs/M3_REVIEW.md` for limitations and review evidence.
+
+Validation on Python 3.12.3:
+- `.venv/bin/python -m pytest tests/test_heuristic.py -q`: 33 passed.
+- `.venv/bin/python -m pytest tests/test_optimizer.py -q`: 67 passed.
+- `.venv/bin/python -m pytest tests/test_baseline_fairness.py -q`: 11 passed.
+- `.venv/bin/python -m pytest`: 377 passed, retaining all 266 M2 tests.
+- `.venv/bin/ruff check .`: all checks passed; `git diff --check`: passed.
+- `.venv/bin/python examples/compare_baselines.py --output-dir /tmp/trialgrid-m3-baselines`:
+  both sample episodes completed with verified replay, no rejected actions or reserve
+  misses. Demo profits: heuristic EUR 5.14, optimizer EUR 4.37; both ended at 40 kWh.
+  These illustrative outputs do not establish superiority. Remote CI not yet verified.
+
+**Next gate:** Human review of M3 before any M4/LLM work. No M4+ features implemented.
+
 - Heuristic dispatch policy to expose known weaknesses.
 - Feasible optimization baseline for comparison, with stated information assumptions.
 **Done when:** both run the same scenario, satisfy controller protocol, and have documented objectives.
