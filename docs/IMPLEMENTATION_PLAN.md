@@ -3,12 +3,23 @@
 Work in small PR-sized increments. For each milestone write tests, run them, summarize outcomes, and update this plan.
 
 ## M0 — Repository foundation
+**Status:** Complete (issue #1). Added src-layout packaging, development dependencies,
+README quick start and Python 3.11/3.12 lint/test CI; retained the existing standard
+`.gitignore`. Validated locally on Python 3.12; CI has not yet run remotely.
+
 - Add `pyproject.toml` for Python 3.11+ with package under `src/`, pytest and Ruff.
 - Add standard `.gitignore`, a focused README quick start, and test layout.
 - Add CI running lint and tests when it becomes useful.
 **Done when:** `python -m pytest` and `ruff check .` succeed locally, including at least one meaningful unit test.
 
 ## M1 — Deterministic battery simulator (FIRST IMPLEMENTATION TASK)
+**Status:** Complete (issue #2). Immutable typed models and a pure step transition
+implement signed grid power, distinct efficiencies, strict physical rejection,
+requested/applied evidence and per-step accounting. Tests cover numerical
+transitions, boundaries, validation, overflow, immutability and repeatability.
+Validation: `python -m pytest` and `ruff check .` in the project virtual environment.
+Reserve timelines and scenario/runner work remain deferred to M2.
+
 - Typed `BatteryConfig`, `BatteryState`, `Action`, `StepInput`, `StepResult`.
 - Explicit signed power convention and `dt_h`.
 - Implement charge/discharge/hold with efficiencies, physical bounds, power limits and separate requested/applied actions.
