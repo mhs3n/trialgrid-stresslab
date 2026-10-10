@@ -29,6 +29,30 @@ Reserve timelines and scenario/runner work remain deferred to M2.
 **Done when:** test suite asserts exact transitions within numerical tolerances and input validation rejects invalid parameters.
 
 ## M2 — Scenarios + runner
+**Status:** Complete locally (issue #3), ready for PR review. Added immutable
+version-1 hourly scenarios, strict JSON validation, per-publication forecast rows,
+reserve timelines and a 64-bit seed. The typed controller protocol receives only
+current/past published observations and an episode-local RNG. M1 owns physical
+transitions; post-step reserve shortfalls are recorded separately. Full episode
+JSON includes observations, requested/applied actions, states, energy flows,
+accounting, violations and aggregate metrics. Import/replay recomputes all
+recorded requests and rejects inconsistent evidence. A hand-authored 24-hour
+fixture and hold-controller CLI demo are included.
+
+Validation on Python 3.12.3:
+- `.venv/bin/python -m pytest tests/test_scenarios.py`: 97 passed.
+- `.venv/bin/python -m pytest tests/test_runner.py -q`: 22 passed.
+- `.venv/bin/python -m pytest`: 266 passed, including all 147 existing tests.
+- `.venv/bin/ruff check .`: all checks passed.
+- `.venv/bin/python -O examples/run_hold.py --output /tmp/trialgrid-m2-hold-episode.json`:
+  completed 24 hours, EUR 0.00 profit, four reserve misses, verified JSON replay.
+- `git diff --check`: passed. Remote CI has not yet been verified for M2.
+
+Limits: hourly scenario resolution; no physical disturbance model, failure
+classification, or wall-clock run timestamps. Replay verifies internal evidence
+consistency, not authenticity. Stateful controllers must be recreated/reset for
+new runs. M3 and all later features remain deferred pending explicit approval.
+
 - Validated versioned serializable scenarios, observed vs forecast prices, reserve requirement timeline, scenario seed.
 - Common controller protocol and deterministic episode runner returning full traces and metrics.
 - No lookahead: controller receives only permitted observations.
