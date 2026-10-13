@@ -24,9 +24,10 @@ See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](d
 
 ## Current milestone
 
-M3 adds a heuristic and a forecast-only optimization baseline on the same
-observation interface. Controller review comes before M4/LLM integration. No LLM,
-frontend, database server, or cloud infrastructure is included.
+M4 adds a tool-using LLM controller on the existing observation interface, with
+strict dispatch outputs, call auditing, and offline recorded-response replay.
+The default demo and CI use a deterministic fake; real API calls are opt-in.
+No frontend, server API, or M5 search is included.
 
 ## Quick start
 
@@ -181,9 +182,40 @@ illustrate behavior only, not measured superiority across a scenario population.
 See [baseline contracts](docs/BASELINES.md) for objectives, limits, and ties, and
 [M3 review](docs/M3_REVIEW.md) for the checks performed before any LLM work.
 
+## Run and replay the M4 controller
+
+```bash
+python examples/run_llm.py --output-dir /tmp/trialgrid-llm-fake
+python examples/run_llm.py --replay /tmp/trialgrid-llm-fake/llm_run.json \
+  --output-dir /tmp/trialgrid-llm-replay
+```
+
+The default fake requires no credentials or optional dependencies. It produces
+synthetic hold calls so CI can verify complete episodes and audits deterministically.
+It is not an LLM performance result. Replay reprocesses saved responses and errors,
+checks all prompts/actions/results, and makes no API calls.
+
+`LLMController` uses the unchanged `act(observation, rng)` protocol. `LLMConfig`
+sets model, forecast horizon, prompt version, attempts, failure policy, and optional
+pricing. Only current actual price and the capped current published forecast reach
+the prompt; historical forecasts are omitted. Finite infeasible dispatch requests
+go unchanged to M1. Malformed outputs and API errors are logged separately and
+may retry; exhausted failures raise by default. An optional hold fallback is
+explicitly attributed to call failure, never to an agent decision.
+
+The demo saves an unchanged M2 episode plus `llm_run.json` and `summary.json`.
+Reports include realized profit, ending energy, reserves/rejections, call latency,
+usage and estimated API cost when known. Costs remain null when billing evidence
+is incomplete. Aborted runs save the call audit but have no complete episode metrics.
+
+For a real model, install `python -m pip install -e '.[llm]'`, set `OPENAI_API_KEY`
+and `TRIALGRID_LLM_MODEL` locally, then run `python examples/run_llm.py --real`.
+No model ID or price is hardcoded. See [M4 configuration, failure semantics and
+billing](docs/LLM_CONTROLLER.md) for environment variables and replay limitations.
+
 ## Status
 
-M0–M3 provide the project foundation, deterministic battery core, versioned
-scenarios, episode runner/replay, and reviewed heuristic/forecast optimization
-baselines. M4/LLM work awaits explicit approval after review. Search and
-API/frontend remain later milestones; no population-level evaluation exists yet.
+M0–M4 provide the deterministic battery core, scenarios and episode replay,
+reviewed baselines, and an auditable LLM adapter with optional real-model transport.
+M5 search and API/frontend remain deferred. No live-model economic evaluation or
+population-level performance claim has been made.

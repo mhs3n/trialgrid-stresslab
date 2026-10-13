@@ -20,7 +20,7 @@ Read `README.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, and `docs/IMPLEMENTATIO
 
 ## Immediate priority
 
-M0–M3 are implemented. Review the M3 heuristic and forecast-only optimization
-baselines before starting M4. Do not implement an LLM controller or later
-milestones without explicit approval. Preserve equal observation access and
-label any future oracle separately from deployable-information baselines.
+M0–M4 are implemented. Review the M4 controller, audit/replay artifacts and optional
+transport before expanding scope. Do not implement M5, frontend or server APIs
+without explicit approval. Preserve equal observation access, distinguish model
+call failures from decisions, and label any future oracle separately.
