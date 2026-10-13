@@ -51,7 +51,7 @@ Validation on Python 3.12.3:
 Limits: hourly scenario resolution; no physical disturbance model, failure
 classification, or wall-clock run timestamps. Replay verifies internal evidence
 consistency, not authenticity. Stateful controllers must be recreated/reset for
-new runs. M3 was subsequently authorized; M4 and later features remain deferred.
+new runs. M3 and M4 were subsequently authorized; M5 and later features remain deferred.
 
 - Validated versioned serializable scenarios, observed vs forecast prices, reserve requirement timeline, scenario seed.
 - Common controller protocol and deterministic episode runner returning full traces and metrics.
@@ -59,7 +59,7 @@ new runs. M3 was subsequently authorized; M4 and later features remain deferred.
 **Done when:** fixture can be serialized, reloaded and replayed with identical traces for deterministic controller.
 
 ## M3 — Baselines
-**Status:** Implemented and locally reviewed, pending human PR review. Separate
+**Status:** Complete (issue #4); merged in PR #10. Separate
 incremental commits add the heuristic, forecast-only optimizer, and comparison/
 review evidence. The existing M2 runner, observation contract and schema are unchanged.
 
@@ -84,13 +84,52 @@ Validation on Python 3.12.3:
   misses. Demo profits: heuristic EUR 5.14, optimizer EUR 4.37; both ended at 40 kWh.
   These illustrative outputs do not establish superiority. Remote CI not yet verified.
 
-**Next gate:** Human review of M3 before any M4/LLM work. No M4+ features implemented.
+**Review gate:** M3 was reviewed and merged before M4 was explicitly authorized.
 
 - Heuristic dispatch policy to expose known weaknesses.
 - Feasible optimization baseline for comparison, with stated information assumptions.
 **Done when:** both run the same scenario, satisfy controller protocol, and have documented objectives.
 
 ## M4 — LLM controller
+**Status:** Implemented and locally validated (issue #5), ready for PR review.
+Strict Responses dispatch tools implement the unchanged M2 controller protocol.
+A configurable 1–6 hour forecast cap and whitelisted prompt fields preserve M3's
+information boundary; historical forecasts cannot bypass the cap. Finite infeasible
+requests remain agent decisions and are passed unchanged to M1.
+
+Immutable attempt/decision records capture exact prompts/observations, model and
+prompt versions, raw responses, usage, latency, requested/returned actions, errors
+and retries. Versioned companion JSON replays responses/errors through the same
+parser and simulator without API calls. Default exhausted-call behavior raises;
+optional fallback hold is labeled separately. Optional OpenAI SDK transport disables
+SDK retries, sanitizes errors and remains absent from the core runtime dependencies.
+The fake demo is deterministic; real model use requires explicit mode/environment.
+
+Validation on Python 3.12.3:
+- `.venv/bin/python -m pytest tests/test_llm.py tests/test_llm_audit.py -q`: 89 passed.
+- `.venv/bin/python -m pytest tests/test_llm_models.py -q`: 38 passed.
+- `.venv/bin/python -m pytest tests/test_llm_sdk.py -q`: 6 passed with OpenAI SDK 2.54.0,
+  using mocked HTTP only. CI retains dependency-free fake tests and a separate SDK smoke job.
+- Pytest with `sys.modules["openai"] = None`: 504 passed, SDK module skipped; no optional
+  SDK is required for fake/controller/audit coverage.
+- `.venv/bin/python -m pytest`: 510 passed, retaining all 377 M3 tests.
+- `.venv/bin/ruff check .`: passed; `git diff --check`: passed.
+- `python examples/run_llm.py` and its `--replay` mode, via `.venv/bin/python` with
+  output directories under `/tmp`: 24 hours, 50 kWh ending energy, EUR 0 profit,
+  four reserve misses, zero rejected actions. Synthetic usage/latency/cost are zero;
+  this is fixture verification, not a real LLM performance result.
+
+Read-only review found and resolved malformed usage metadata being treated as known
+billing, and malformed successful HTTP responses bypassing audit/retry. Regressions
+cover both. Tests also cover malformed dispatches, API/retry/fallback distinctions,
+no-lookahead, prompt caps, audit corruption, unknown costs, and replay without SDK calls.
+
+Limits: no live model request was made; provider behavior/performance remains untested.
+Costs are caller-priced USD estimates, separate from EUR profit, and unknown without
+complete billing evidence. Aborted runs keep call records but not a complete physical
+trace/economic summary. Replay verifies consistency, not authenticity. See
+`docs/LLM_CONTROLLER.md`. Remote CI has not yet been verified. M5/frontend remain deferred.
+
 - Typed action tools/structured output, retries, call tracing, configurable model, safe action-validation boundary.
 - Record responses for replay and compare cost.
 **Done when:** one complete example episode can be audited/replayed without dependence on current model stochasticity.

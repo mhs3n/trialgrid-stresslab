@@ -114,5 +114,25 @@ tree, not continuous powers. It is not an oracle upper bound. Configuration and
 information assumptions accompany replayable episodes in the comparison manifest;
 M2 schemas and physical enforcement remain unchanged. See `docs/BASELINES.md`.
 
-M3 controller review is a gate before M4. No LLM controller, API, UI, search, or
-oracle has been added in this milestone.
+M3 controller review was completed before the separately authorized M4 work.
+M3 introduced no LLM controller, API, UI, search, or oracle.
+
+## M4 controller and evidence
+
+`controllers/llm_types.py` defines validated configuration, transport replies and
+immutable call/decision records. `llm.py` projects the M2 observation and converts
+one strict dispatch tool call into `Action`. `llm_models.py` provides a deterministic
+fake and a lazily imported optional OpenAI Responses transport with zero SDK retries.
+`llm_audit.py` wraps the existing runner, records explicit call failures/fallbacks,
+exports versioned companion evidence, and replays responses/errors without network.
+
+M1, M2 domain/runner/scenario schemas, and M3 baselines are unchanged. The model's
+prompt only uses the capped current publication and past actual/state/reserve data;
+historical forecast rows are excluded. Physical invalidity is an agent decision
+for M1 to reject, not a model-call retry. Only API/output failures enter retries.
+
+Complete runs include the existing M2 episode. Aborted runs preserve call evidence
+but no completed physical trace/episode metrics. Reports distinguish fallback
+holds, output failures and transport failures from model-chosen actions and physical
+rejections. The companion schema records original latency/usage and caller-supplied
+pricing; replay checks consistency rather than authenticity. See `docs/LLM_CONTROLLER.md`.
