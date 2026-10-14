@@ -102,6 +102,14 @@ button:disabled { opacity: .5; cursor: wait; }
 .metric-card.good strong { color: var(--mint); }
 .metric-card.bad strong { color: var(--coral); }
 
+.findings-card { display: flex; gap: 24px; align-items: flex-start; border: 1px solid #49382c; border-radius: 9px; background: rgba(42, 31, 24, .58); padding: 16px 18px; margin-bottom: 22px; }
+.findings-card h3 { margin: 5px 0 0; font-size: 14px; white-space: nowrap; }
+.findings-card > p { margin: 3px 0; color: var(--muted); font-size: 11px; }
+.finding-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.finding-list article { display: grid; grid-template-columns: repeat(3, auto); gap: 3px 12px; padding: 8px 10px; border: 1px solid rgba(223, 104, 69, .22); border-radius: 6px; background: rgba(223, 104, 69, .07); }
+.finding-list strong { grid-column: 1 / -1; color: #ffb39c; font-size: 10px; text-transform: capitalize; }
+.finding-list span { color: var(--muted); font: 9px "DM Mono", monospace; text-transform: capitalize; }
+
 .evidence-layout { display: grid; grid-template-columns: minmax(0, 1fr) 275px; gap: 16px; align-items: start; }
 .charts-column { display: flex; flex-direction: column; gap: 14px; }
 .chart-card, .step-panel, .notice-card { border: 1px solid var(--line); border-radius: 9px; background: rgba(17, 27, 25, .84); }

@@ -36,6 +36,7 @@ export interface ControllerEvidence {
   informationMode: string;
   label: string;
   configuration: unknown;
+  energyPoints: Array<{ step: number; energy: number | null }>;
   metrics: {
     revenue: number | null;
     cost: number | null;

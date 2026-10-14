@@ -52,6 +52,10 @@ describe("evidence API normalization", () => {
       reserveShortfall: 2,
       publishedForecast: [40, 41],
     });
+    expect(detail.target.energyPoints).toEqual([
+      { step: 0, energy: 50 },
+      { step: 1, energy: 50 },
+    ]);
     expect(JSON.stringify(detail)).not.toContain("must never be rendered");
   });
 });
@@ -74,6 +78,10 @@ function controller(name: string, shortfall: number) {
       reserve_violation_count: shortfall ? 1 : 0,
       ending_energy_kwh: 50,
     },
+    energy_points: [
+      { step: 0, energy_kwh: 50 },
+      { step: 1, energy_kwh: 50 },
+    ],
     steps: [{
       step: 0,
       actual_price_eur_per_mwh: 40,

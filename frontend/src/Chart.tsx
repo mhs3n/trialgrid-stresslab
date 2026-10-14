@@ -15,6 +15,8 @@ interface ChartProps {
   violations?: boolean[];
   selectedIndex: number;
   onSelect: (index: number) => void;
+  startLabel?: string;
+  endLabel?: string;
   children?: ReactNode;
 }
 
@@ -30,6 +32,8 @@ export function Chart({
   violations = [],
   selectedIndex,
   onSelect,
+  startLabel,
+  endLabel,
   children,
 }: ChartProps) {
   const count = Math.max(1, ...series.map((item) => item.values.length));
@@ -114,9 +118,9 @@ export function Chart({
         ))}
         <line x1={selectedX} x2={selectedX} y1={PAD.top} y2={HEIGHT - PAD.bottom} className="selection-line" />
         <circle cx={selectedX} cy={HEIGHT - PAD.bottom} r="4" className="selection-handle" />
-        <text x={PAD.left} y={HEIGHT - 10} className="axis-text">Hour 0</text>
+        <text x={PAD.left} y={HEIGHT - 10} className="axis-text">{startLabel ?? "Hour 0"}</text>
         <text x={WIDTH - PAD.right} y={HEIGHT - 10} textAnchor="end" className="axis-text">
-          Hour {count - 1}
+          {endLabel ?? `Hour ${count - 1}`}
         </text>
       </svg>
       {children}

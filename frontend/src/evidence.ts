@@ -1,4 +1,4 @@
-import type { EvidenceStep } from "./types";
+import type { EvidenceStep, Finding } from "./types";
 
 export function formatNumber(value: number | null | undefined, digits = 1): string {
   return typeof value === "number" && Number.isFinite(value)
@@ -21,4 +21,8 @@ export function stepHasViolation(step: EvidenceStep): boolean {
 
 export function currentForecast(step: EvidenceStep): number | null {
   return step.publishedForecast[0] ?? null;
+}
+
+export function findingsForSide(findings: Finding[], side: "target" | "comparator"): Finding[] {
+  return side === "target" ? findings : [];
 }

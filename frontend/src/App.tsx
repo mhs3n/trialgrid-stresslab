@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createDemo, getRun, listRuns, replayRun, rerunControllers } from "./api";
 import { Chart } from "./Chart";
-import { currentForecast, formatDate, formatNumber, stepHasViolation } from "./evidence";
+import { currentForecast, findingsForSide, formatDate, formatNumber, stepHasViolation } from "./evidence";
 import type { ControllerEvidence, RunDetail, RunSummary } from "./types";
 
 type EvidenceSide = "target" | "comparator";
@@ -107,14 +107,15 @@ export default function App() {
   const evidence = detail?.[side] ?? null;
   const step = evidence?.steps[Math.min(selectedStep, Math.max(0, evidence.steps.length - 1))];
   const violations = evidence?.steps.map(stepHasViolation) ?? [];
+  const visibleFindings = findingsForSide(detail?.report.findings ?? [], side);
   const findingsByStep = useMemo(() => {
-    const map = new Map<number, string[]>();
-    for (const finding of detail?.report.findings ?? []) {
+    const map = new Map<number, typeof visibleFindings>();
+    for (const finding of visibleFindings) {
       if (finding.step === null) continue;
-      map.set(finding.step, [...(map.get(finding.step) ?? []), finding.kind]);
+      map.set(finding.step, [...(map.get(finding.step) ?? []), finding]);
     }
     return map;
-  }, [detail]);
+  }, [visibleFindings]);
 
   return (
     <div className="app-shell">
@@ -202,6 +203,27 @@ export default function App() {
                 <Metric label="Profit gap" value={`€${formatNumber(detail.report.profitGap, 2)}`} hint="Comparator minus target" />
               </section>
 
+              {side === "target" && (
+                <section className="findings-card" aria-label="Target failure report">
+                  <div>
+                    <span className="eyebrow">Target failure report</span>
+                    <h3>Declared findings</h3>
+                  </div>
+                  {visibleFindings.length ? (
+                    <div className="finding-list">
+                      {visibleFindings.map((finding, index) => (
+                        <article key={`${finding.kind}-${finding.step ?? "run"}-${index}`}>
+                          <strong>{humanize(finding.kind)}</strong>
+                          <span>{finding.step === null ? "Run-level finding" : `Hour ${finding.step}`}</span>
+                          <span>Severity {formatNumber(finding.severity, 2)}</span>
+                          <span>{finding.classification ? humanize(finding.classification) : "Classification unknown"}</span>
+                        </article>
+                      ))}
+                    </div>
+                  ) : <p>No declared findings for the target.</p>}
+                </section>
+              )}
+
               <div className="evidence-layout">
                 <div className="charts-column">
                   <Chart
@@ -218,14 +240,16 @@ export default function App() {
                   />
                   <Chart
                     title="Stored energy and commitment"
-                    subtitle="End-of-step battery energy against the post-step minimum reserve"
+                    subtitle="Initial and post-step battery energy against each post-step minimum reserve"
                     unit="kWh"
-                    selectedIndex={selectedStep}
-                    onSelect={setSelectedStep}
-                    violations={violations}
+                    selectedIndex={selectedStep + 1}
+                    onSelect={(index) => setSelectedStep(Math.max(0, index - 1))}
+                    violations={[false, ...violations]}
+                    startLabel="Initial state"
+                    endLabel={`After hour ${Math.max(0, evidence.steps.length - 1)}`}
                     series={[
-                      { label: "Energy", color: "#f1bd58", values: evidence.steps.map((item) => item.endEnergy) },
-                      { label: "Post-step reserve", color: "#7897d5", dashed: true, values: evidence.steps.map((item) => item.reserve) },
+                      { label: "Energy", color: "#f1bd58", values: evidence.energyPoints.map((item) => item.energy) },
+                      { label: "Post-step reserve", color: "#7897d5", dashed: true, values: [null, ...evidence.steps.map((item) => item.reserve)] },
                     ]}
                   />
                   <Chart
@@ -256,7 +280,7 @@ export default function App() {
                   <div className="violation-list">
                     <span>Evidence labels</span>
                     {step.violations.length || findingsByStep.has(step.step) ? (
-                      [...new Set([...step.violations, ...(findingsByStep.get(step.step) ?? [])])].map((item) => <strong key={item}>{humanize(item)}</strong>)
+                      [...new Set([...step.violations, ...(findingsByStep.get(step.step) ?? []).map((finding) => finding.kind)])].map((item) => <strong key={item}>{humanize(item)}</strong>)
                     ) : <em>None</em>}
                   </div>
                 </aside>

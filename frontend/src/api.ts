@@ -138,6 +138,9 @@ function normalizeController(value: unknown, fallback: string): ControllerEviden
     informationMode: text(metadata.information_mode, "Unknown"),
     label: text(metadata.label, fallback),
     configuration: metadata.configuration ?? null,
+    energyPoints: Array.isArray(row.energy_points)
+      ? row.energy_points.map((point, index) => normalizeEnergyPoint(point, index))
+      : [],
     metrics: {
       revenue: number(metrics.revenue_eur),
       cost: number(metrics.degradation_cost_eur),
@@ -147,6 +150,14 @@ function normalizeController(value: unknown, fallback: string): ControllerEviden
       endingEnergy: number(metrics.ending_energy_kwh),
     },
     steps: Array.isArray(row.steps) ? row.steps.map(normalizeStep) : [],
+  };
+}
+
+function normalizeEnergyPoint(value: unknown, index: number) {
+  const row = isRecord(value) ? value : {};
+  return {
+    step: number(row.step) ?? index,
+    energy: number(row.energy_kwh),
   };
 }
 

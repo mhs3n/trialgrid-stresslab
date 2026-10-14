@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentForecast, formatDate, formatNumber, stepHasViolation } from "./evidence";
+import { currentForecast, findingsForSide, formatDate, formatNumber, stepHasViolation } from "./evidence";
 import type { EvidenceStep } from "./types";
 
 describe("evidence display helpers", () => {
@@ -20,6 +20,12 @@ describe("evidence display helpers", () => {
     expect(stepHasViolation(sampleStep({ violations: ["power_limit"] }))).toBe(true);
     expect(stepHasViolation(sampleStep({ reserveShortfall: 1 }))).toBe(true);
     expect(stepHasViolation(sampleStep({}))).toBe(false);
+  });
+
+  it("attributes the failure report only to target evidence", () => {
+    const findings = [{ kind: "economic_dominance", step: null, severity: 2, classification: null }];
+    expect(findingsForSide(findings, "target")).toBe(findings);
+    expect(findingsForSide(findings, "comparator")).toEqual([]);
   });
 });
 
