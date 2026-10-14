@@ -16,7 +16,7 @@ from trialgrid.api.controllers import build_controller
 from trialgrid.metrics import FailureConfig
 from trialgrid.results.artifacts import ArtifactStore, EvidenceArtifact, artifact_detail
 from trialgrid.runner import run_episode
-from trialgrid.scenario import Scenario
+from trialgrid.scenario import Scenario, load_json
 
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_SCENARIO_HOURS = 168
@@ -131,6 +131,25 @@ def create_app(
     async def replay_run(artifact_id: str) -> dict:
         artifact = await run_in_threadpool(load_or_error, artifact_id)
         return artifact_detail(artifact, replay_verified=True)
+
+    @app.post("/api/runs/{artifact_id}/rerun", status_code=status.HTTP_201_CREATED)
+    async def rerun_case(artifact_id: str) -> dict:
+        artifact = await run_in_threadpool(load_or_error, artifact_id)
+        target = load_json(artifact.target_metadata_json)
+        comparator = load_json(artifact.comparator_metadata_json)
+        try:
+            request = RunRequest(
+                scenario=artifact.scenario.to_dict(),
+                target=target["name"],
+                comparator=comparator["name"],
+                horizon=target["horizon"],
+                economic_threshold_eur=artifact.criteria.economic_threshold_eur,
+            )
+            rerun = await run_in_threadpool(_run, request)
+            rerun = await run_in_threadpool(store.save, rerun)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        return artifact_detail(rerun)
 
     @app.post("/api/runs", status_code=status.HTTP_201_CREATED)
     async def run_case(request: RunRequest) -> dict:

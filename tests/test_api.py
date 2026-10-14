@@ -60,6 +60,11 @@ def test_run_list_detail_and_offline_replay(tmp_path, monkeypatch):
     replay = api.post(f"/api/runs/{artifact_id}/replay")
     assert replay.status_code == 200
     assert replay.json() == detail
+    rerun = api.post(f"/api/runs/{artifact_id}/rerun")
+    assert rerun.status_code == 201
+    assert rerun.json()["id"] != artifact_id
+    assert rerun.json()["target"]["metrics"] == detail["target"]["metrics"]
+    assert rerun.json()["report"] == detail["report"]
 
 
 def test_demo_is_deterministic_fixed_evidence(tmp_path):
