@@ -151,3 +151,29 @@ energy. Reserve preventability requires a feasible current-step witness. Model
 fallback outcomes are explicitly attributed and excluded from agent-failure scores.
 Every attempt is retained; interrupted candidates consume budget and remain unscored.
 Post-search verification does not feed discovery or selection. See `docs/SEARCH.md`.
+
+## M7 evidence API and viewer
+
+`results/artifacts.py` defines a version-1 evidence artifact containing one scenario,
+target/comparator metadata, their complete M2 episodes, declared failure criteria and
+the derived report. Loading replays both episodes, checks controller identity and
+recomputes the report before returning any value. The content-derived ID covers the
+complete artifact, including its UTC creation time. Verification establishes internal
+consistency, not provenance or cryptographic authenticity.
+
+`api/app.py` exposes a local FastAPI service backed by one configured artifact root.
+Controller execution is limited to hold, heuristic and the forecast-only optimizer;
+there is no dynamic import, shell execution, arbitrary output path, remote URL or live
+model transport. Scenario length and request/artifact sizes are bounded. Artifact IDs
+are fixed-format hexadecimal values, symlinks are rejected, and the unauthenticated
+demo launcher permits only loopback hosts.
+
+The React application consumes normalized server projections rather than interpreting
+raw dataclass structures. Timelines preserve actual prices versus published forecasts,
+initial plus post-step energy, post-step reserve commitments, requested versus applied
+actions, physical violations and reserve shortfalls. Replay verifies recorded evidence;
+rerun executes the saved scenario against current allowlisted controller code and saves
+a new artifact. Unknown values remain null rather than becoming zero.
+
+M6 remains unimplemented. M7 can inspect, replay and rerun full cases, but does not
+claim that cases are minimized or exported as pytest regressions.

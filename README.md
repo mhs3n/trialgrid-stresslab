@@ -24,9 +24,9 @@ See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](d
 
 ## Current milestone
 
-M5 adds declared failure criteria and fixed, seeded random, and targeted scenario
-search under measured simulator-call budgets. Controller observations retain the
-existing information boundary. Live-model smoke testing is separate and opt-in.
+M7 adds a local evidence API and React replay viewer over the existing deterministic
+runner. Evidence is replay-verified before metrics reach the UI. M6 shrinking and
+pytest regression export remain deliberately separate and unimplemented.
 
 ## Quick start
 
@@ -232,9 +232,30 @@ The initial small experiment found no targeted-search advantage. See
 counts or expanding budgets. The CLI also supports offline `--target hold` and
 `--target fake-llm`; it does not initiate paid model calls.
 
+## Inspect and rerun evidence locally
+
+Install the optional demo dependencies, then launch the pinned React application:
+
+```bash
+python -m pip install -e '.[demo]'
+trialgrid-demo --artifact-dir /tmp/trialgrid-demo
+```
+
+The last command creates a deterministic illustrative artifact, verifies both
+episodes and its failure report, then serves the same-origin API and UI at
+`http://127.0.0.1:8000`. On the first run it installs the exact frontend lockfile
+and builds the viewer if needed. The API can run a scenario with an allowlisted
+offline controller, replay recorded evidence, or rerun the same scenario against
+the current controller code. It never constructs a live model transport.
+
+The bundled case compares hold with the forecast-only finite-action optimizer on
+the hand-authored price-cycle fixture. Hold misses four locally preventable reserve
+commitments; this demonstrates the evidence workflow, not search performance or
+production safety. See [the M7 evidence report](docs/EVIDENCE_REPORT.md).
+
 ## Status
 
-M0–M5 provide the deterministic simulator, replayable scenarios, baseline and LLM
-controllers, declared failures, and budgeted search. M6 shrinking and API/frontend
-remain deferred. Live-model smoke testing awaits model/budget details and local API
-configuration; no live-model economic or population-level superiority claim is made.
+M0–M5 provide the simulator, replayable scenarios, controllers, failure predicates
+and budgeted search. M7 now provides local evidence inspection and current-controller
+case reruns. M6 shrinking and pytest regression export remain deferred, so the full
+fix-to-export workflow is not complete. No search or controller superiority claim is made.
