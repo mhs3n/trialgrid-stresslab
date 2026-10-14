@@ -136,3 +136,18 @@ but no completed physical trace/episode metrics. Reports distinguish fallback
 holds, output failures and transport failures from model-chosen actions and physical
 rejections. The companion schema records original latency/usage and caller-supplied
 pricing; replay checks consistency rather than authenticity. See `docs/LLM_CONTROLLER.md`.
+
+## M5 evaluation and search
+
+`metrics.py` evaluates declared failures against completed episodes.
+`search/domain.py` owns bounded synthetic sampling and one-scalar mutation;
+`search/evaluation.py` owns fresh controller execution, shared observation caps,
+fixed/random/targeted selection, records, summaries and verification. A context-local
+`simulation_budget.py` hook at M1 entry counts all simulator calls, including
+planning and reserve witnesses, while retaining existing physical arithmetic.
+
+Economic eligibility requires compliant comparator behavior and no less terminal
+energy. Reserve preventability requires a feasible current-step witness. Model
+fallback outcomes are explicitly attributed and excluded from agent-failure scores.
+Every attempt is retained; interrupted candidates consume budget and remain unscored.
+Post-search verification does not feed discovery or selection. See `docs/SEARCH.md`.

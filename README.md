@@ -24,10 +24,9 @@ See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](d
 
 ## Current milestone
 
-M4 adds a tool-using LLM controller on the existing observation interface, with
-strict dispatch outputs, call auditing, and offline recorded-response replay.
-The default demo and CI use a deterministic fake; real API calls are opt-in.
-No frontend, server API, or M5 search is included.
+M5 adds declared failure criteria and fixed, seeded random, and targeted scenario
+search under measured simulator-call budgets. Controller observations retain the
+existing information boundary. Live-model smoke testing is separate and opt-in.
 
 ## Quick start
 
@@ -213,9 +212,29 @@ and `TRIALGRID_LLM_MODEL` locally, then run `python examples/run_llm.py --real`.
 No model ID or price is hardcoded. See [M4 configuration, failure semantics and
 billing](docs/LLM_CONTROLLER.md) for environment variables and replay limitations.
 
+## Compare failure-search methods
+
+```bash
+python examples/compare_search.py --calls 20000 --seeds 11 22 33 \
+  --output-dir /tmp/trialgrid-m5
+```
+
+The same target/comparator and domain are evaluated by fixed, random and targeted
+search. Budgets include M1 calls used by planning and reserve witnesses. Artifacts
+save every candidate, including nonfailures and interrupted final candidates.
+The economic predicate requires a compliant comparator earning materially more
+while retaining at least as much final energy. Reserve labels distinguish a
+witnessed current-step alternative from impossible or undetermined outcomes.
+Model-call failures and fallback holds remain distinct from agent decisions.
+
+The initial small experiment found no targeted-search advantage. See
+[M5 contracts, replay and measured results](docs/SEARCH.md) before interpreting
+counts or expanding budgets. The CLI also supports offline `--target hold` and
+`--target fake-llm`; it does not initiate paid model calls.
+
 ## Status
 
-M0–M4 provide the deterministic battery core, scenarios and episode replay,
-reviewed baselines, and an auditable LLM adapter with optional real-model transport.
-M5 search and API/frontend remain deferred. No live-model economic evaluation or
-population-level performance claim has been made.
+M0–M5 provide the deterministic simulator, replayable scenarios, baseline and LLM
+controllers, declared failures, and budgeted search. M6 shrinking and API/frontend
+remain deferred. Live-model smoke testing awaits model/budget details and local API
+configuration; no live-model economic or population-level superiority claim is made.
