@@ -128,15 +128,16 @@ Limits: no live model request was made; provider behavior/performance remains un
 Costs are caller-priced USD estimates, separate from EUR profit, and unknown without
 complete billing evidence. Aborted runs keep call records but not a complete physical
 trace/economic summary. Replay verifies consistency, not authenticity. See
-`docs/LLM_CONTROLLER.md`. Remote CI has not yet been verified. M5/frontend remain deferred.
+`docs/LLM_CONTROLLER.md`. Remote CI has not yet been verified for that milestone.
+M5 was subsequently merged and the M7 viewer was separately authorized.
 
 - Typed action tools/structured output, retries, call tracing, configurable model, safe action-validation boundary.
 - Record responses for replay and compare cost.
 **Done when:** one complete example episode can be audited/replayed without dependence on current model stochasticity.
 
 ## M5 — Failure predicates + scenario search
-**Status:** Implemented locally (issue #6), ready for PR review. Incremental commits
-first validated fixed/random evaluation, then introduced charged targeted mutation.
+**Status:** Complete (issue #6); merged in PR #12. Incremental commits first
+validated fixed/random evaluation, then introduced charged targeted mutation.
 
 Added predeclared invalid-action, classified reserve-shortfall and conservative
 economic-dominance predicates; bounded independent forecast/actual generators;
@@ -158,12 +159,11 @@ Validation on Python 3.12.3:
 Read-only review findings on horizon enforcement, budget-boundary model calls,
 report deletion, fallback attribution and final failed-dispatch replay were fixed
 with regression tests. See `docs/SEARCH.md` for the exact criteria/budget definition,
-result limits and negative finding. Remote CI has not yet been verified.
+result limits and negative finding. Remote CI passed after merge.
 
 **Stop/go gate:** No search advantage established in this small synthetic check;
-revisit declared domains/criteria and larger held-out evaluation before M6. The
-paid smoke test is still pending model/budget details and local API configuration.
-M6, frontend and server APIs remain unimplemented.
+revisit declared domains/criteria and larger held-out evaluation before changing
+the search method or making comparative claims.
 
 - Explicit economic, constraint and reserve failure functions.
 - Fixed test suite and seeded random generator.
@@ -171,13 +171,38 @@ M6, frontend and server APIs remain unimplemented.
 **Done when:** equal-budget comparison can be run from one command and produces honest, reproducible summary.
 
 ## M6 — Shrinking and regression export
+**Status:** Not implemented. M7 was explicitly authorized first; M7 does not absorb
+or imply this milestone's shrinking and pytest export work.
+
 - Shrink disturbances while preserving predicate; export case JSON and pytest regression.
 **Done when:** a detected failure reproduces from fixture and is flagged against the defective controller.
 
 ## M7 — Evidence report and demo
+**Status:** Evidence viewer implemented for review; full roadmap completion remains
+gated by M6 regression export.
+
+- Versioned content-addressed target/comparator artifacts replay both episodes and
+  recompute the failure report before exposing metrics.
+- Local FastAPI service lists, runs, replays and reruns cases with an allowlist of
+  offline controllers. It uses one configured artifact root and never constructs a
+  live model transport.
+- React/TypeScript viewer compares metrics and plots actual prices, published
+  forecasts, energy, reserves, requested/applied actions and violation events.
+- Deterministic one-command fixed-case demo and `docs/EVIDENCE_REPORT.md` retain the
+  M5 negative result and label the forecast optimizer as a non-oracle approximation.
+- No authentication, database, cloud deployment, shrinking or regression export.
+
+Validation on Python 3.12.3 and Node 20.19.6:
+- `.venv/bin/python -m pytest`: 648 passed, retaining all 631 M5 tests.
+- `.venv/bin/ruff check .` and `git diff --check`: passed.
+- `npm test --prefix frontend`: 6 passed; `npm run build --prefix frontend`: passed.
+- `npm audit --prefix frontend --audit-level=high`: zero vulnerabilities reported.
+- `trialgrid-demo --generate-only` produced and reloaded the verified 24-hour
+  artifact; browser smoke verified list/detail/replay/rerun and the built UI.
+
 - API to run and replay cases; React plots for price, SoC, actions, commitments and violation events.
 - Technical evaluation report and repeatable one-command demonstration.
-**Done when:** a reviewer can reproduce a failure, inspect its cause, apply a fix and re-run regression tests.
+**Done when:** a reviewer can reproduce a failure, inspect its cause, apply a fix and re-run regression tests. The API/UI and current-controller case rerun are present; standalone minimized pytest regression export remains M6 work, so this final criterion is not yet fully met.
 
 ## Stop/go gates
 
