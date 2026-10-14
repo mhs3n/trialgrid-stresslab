@@ -91,7 +91,7 @@ Validation on Python 3.12.3:
 **Done when:** both run the same scenario, satisfy controller protocol, and have documented objectives.
 
 ## M4 — LLM controller
-**Status:** Implemented and locally validated (issue #5), ready for PR review.
+**Status:** Complete (issue #5); merged in PR #11.
 Strict Responses dispatch tools implement the unchanged M2 controller protocol.
 A configurable 1–6 hour forecast cap and whitelisted prompt fields preserve M3's
 information boundary; historical forecasts cannot bypass the cap. Finite infeasible
@@ -135,6 +135,36 @@ trace/economic summary. Replay verifies consistency, not authenticity. See
 **Done when:** one complete example episode can be audited/replayed without dependence on current model stochasticity.
 
 ## M5 — Failure predicates + scenario search
+**Status:** Implemented locally (issue #6), ready for PR review. Incremental commits
+first validated fixed/random evaluation, then introduced charged targeted mutation.
+
+Added predeclared invalid-action, classified reserve-shortfall and conservative
+economic-dominance predicates; bounded independent forecast/actual generators;
+three fixed fixtures; seeded random and elitist mutation with exploration. A
+context-local M1 hook counts actual calls including planning and witnesses, with
+hard caps and explicit incomplete final candidates. Search preserves every case,
+controller/model failure attribution and replay evidence. Verification reconstructs
+episodes, LLM responses, generated proposals, findings, lineage and summaries.
+
+Validation on Python 3.12.3:
+- `.venv/bin/python -m pytest`: 631 passed, retaining all 510 M4 tests.
+- `.venv/bin/ruff check .` and `git diff --check`: passed.
+- `examples/compare_search.py --calls 20000 --seeds 11 22 33`, run via the venv:
+  all three methods used exactly 20,000 calls per seed, with three completed
+  evaluations each and zero actionable heuristic cases. No targeted advantage found.
+- Same command with `--target fake-llm --seeds 11`: fixed one unique actionable
+  environment, random three, targeted three; synthetic holds, no provider calls.
+
+Read-only review findings on horizon enforcement, budget-boundary model calls,
+report deletion, fallback attribution and final failed-dispatch replay were fixed
+with regression tests. See `docs/SEARCH.md` for the exact criteria/budget definition,
+result limits and negative finding. Remote CI has not yet been verified.
+
+**Stop/go gate:** No search advantage established in this small synthetic check;
+revisit declared domains/criteria and larger held-out evaluation before M6. The
+paid smoke test is still pending model/budget details and local API configuration.
+M6, frontend and server APIs remain unimplemented.
+
 - Explicit economic, constraint and reserve failure functions.
 - Fixed test suite and seeded random generator.
 - Targeted evolutionary search with mutation/selection only after random baseline works.

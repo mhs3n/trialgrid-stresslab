@@ -20,7 +20,7 @@ Read `README.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, and `docs/IMPLEMENTATIO
 
 ## Immediate priority
 
-M0–M4 are implemented. Review the M4 controller, audit/replay artifacts and optional
-transport before expanding scope. Do not implement M5, frontend or server APIs
-without explicit approval. Preserve equal observation access, distinguish model
-call failures from decisions, and label any future oracle separately.
+M0–M5 are implemented. Review M5's declared criteria, information boundary, budget
+accounting and recorded negative results before expanding scope. Revisit search
+validation before M6; do not implement shrinking, frontend or server APIs without
+explicit approval. Preserve model-failure attribution and label any future oracle.

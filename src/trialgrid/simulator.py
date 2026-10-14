@@ -3,6 +3,7 @@
 from math import isfinite
 
 from trialgrid.domain import Action, BatteryConfig, BatteryState, StepInput, StepResult
+from trialgrid.simulation_budget import record_simulator_call
 
 
 def step(
@@ -15,6 +16,7 @@ def step(
     initial state raises ValueError; infeasible finite requests produce a trace.
     Arithmetic overflow raises ValueError rather than returning nonfinite results.
     """
+    record_simulator_call()
     if not config.energy_floor_kwh <= state.energy_kwh <= config.energy_ceiling_kwh:
         raise ValueError("initial energy must be within configured bounds")
 
