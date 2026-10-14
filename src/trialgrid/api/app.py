@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, StrictInt, field_validator
@@ -21,6 +21,55 @@ from trialgrid.scenario import Scenario, load_json
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_SCENARIO_HOURS = 168
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
+class RequestSizeLimitMiddleware:
+    """Reject oversized fixed or chunked bodies before request parsing."""
+
+    def __init__(self, app, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers", ()))
+        length = headers.get(b"content-length")
+        if length is not None:
+            try:
+                if int(length) > self.max_bytes:
+                    await self._reject(scope, receive, send, 413, "request exceeds size limit")
+                    return
+            except ValueError:
+                await self._reject(scope, receive, send, 400, "invalid content-length")
+                return
+        messages = []
+        total = 0
+        while True:
+            message = await receive()
+            messages.append(message)
+            if message["type"] == "http.disconnect":
+                return
+            if message["type"] == "http.request":
+                total += len(message.get("body", b""))
+                if total > self.max_bytes:
+                    await self._reject(scope, receive, send, 413, "request exceeds size limit")
+                    return
+                if not message.get("more_body", False):
+                    break
+
+        async def replay_receive():
+            if messages:
+                return messages.pop(0)
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        await self.app(scope, replay_receive, send)
+
+    @staticmethod
+    async def _reject(scope, receive, send, code: int, detail: str) -> None:
+        response = JSONResponse(status_code=code, content={"detail": detail})
+        await response(scope, receive, send)
 
 
 class RunRequest(BaseModel):
@@ -91,20 +140,7 @@ def create_app(
         description="Local, unauthenticated, offline evidence replay for TrialGrid.",
     )
     app.state.artifact_store = store
-
-    @app.middleware("http")
-    async def reject_oversized_requests(request: Request, call_next):
-        length = request.headers.get("content-length")
-        if length is not None:
-            try:
-                if int(length) > MAX_REQUEST_BYTES:
-                    return JSONResponse(
-                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                        content={"detail": "request exceeds size limit"},
-                    )
-            except ValueError:
-                return JSONResponse(status_code=400, content={"detail": "invalid content-length"})
-        return await call_next(request)
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=MAX_REQUEST_BYTES)
 
     @app.get("/api/health")
     async def health() -> dict:

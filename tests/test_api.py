@@ -107,6 +107,22 @@ def test_oversized_request_is_rejected_before_parsing(tmp_path):
     assert response.status_code == 413
 
 
+def test_chunked_oversized_request_is_rejected_before_parsing(tmp_path):
+    api = client(tmp_path)
+
+    def chunks():
+        yield b'{"scenario":"'
+        yield b"x" * (2 * 1024 * 1024)
+        yield b'"}'
+
+    response = api.post(
+        "/api/runs",
+        content=chunks(),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
 def test_tampered_saved_artifact_is_never_presented(tmp_path):
     api = client(tmp_path)
     created = api.post(
