@@ -8,7 +8,7 @@ from random import Random
 from trialgrid.controllers.llm import ControllerCallFailure, LLMController, canonical
 from trialgrid.controllers.llm_audit import RecordedModel
 from trialgrid.controllers.llm_types import LLMConfig, TokenPricing
-from trialgrid.domain import StepInput
+from trialgrid.domain import Action, StepInput, _finite
 from trialgrid.metrics import FailureConfig, FailureReport, evaluate_episode
 from trialgrid.runner import (
     Controller,
@@ -21,12 +21,14 @@ from trialgrid.runner import (
 from trialgrid.scenario import Scenario, load_json, require_keys
 from trialgrid.search.domain import (
     ScenarioDomain,
+    mutate_scenario,
     sample_scenario,
     scenario_fingerprint,
     validate_scenario,
 )
 from trialgrid.simulation_budget import (
     SimulationBudgetExceeded,
+    SimulationCounter,
     count_simulator_calls,
     remaining_simulator_calls,
 )
@@ -69,16 +71,22 @@ class SearchConfig:
     simulator_call_budget: int = 20_000
     max_candidates: int = 100
     seed: int = 42
+    population_size: int = 4
+    random_exploration_probability: float = 0.25
 
     def __post_init__(self) -> None:
         for name, low, high in (
             ("simulator_call_budget", 1, 10_000_000),
             ("max_candidates", 1, 100_000),
             ("seed", 0, 2**64 - 1),
+            ("population_size", 1, 100),
         ):
             value = getattr(self, name)
             if type(value) is not int or not low <= value <= high:
                 raise ValueError(f"{name} must be an integer in [{low}, {high}]")
+        _finite("random_exploration_probability", self.random_exploration_probability)
+        if not 0 <= self.random_exploration_probability <= 1:
+            raise ValueError("random_exploration_probability must be in [0, 1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +125,7 @@ def actionable_score(report: FailureReport | None) -> tuple[int, float, float]:
 
 
 def _bounded_observation(observation: Observation, horizon: int) -> Observation:
-    def cap(frame):
+    def cap(frame: ObservationFrame) -> ObservationFrame:
         return replace(
             frame, forecast_prices_eur_per_mwh=frame.forecast_prices_eur_per_mwh[:horizon]
         )
@@ -133,7 +141,7 @@ class _BoundedController:
     def __init__(self, controller: Controller, horizon: int) -> None:
         self.controller, self.horizon = controller, horizon
 
-    def act(self, observation: Observation, rng: Random):
+    def act(self, observation: Observation, rng: Random) -> Action:
         if remaining_simulator_calls() == 0:
             raise SimulationBudgetExceeded("simulator-call budget exhausted")
         return self.controller.act(_bounded_observation(observation, self.horizon), rng)
@@ -191,7 +199,16 @@ def _run_spec(
     return episode, error, audit
 
 
-def _evaluate(scenario, source, parent_id, index, target, comparator, criteria, counter):
+def _evaluate(
+    scenario: Scenario,
+    source: str,
+    parent_id: str | None,
+    index: int,
+    target: ControllerSpec,
+    comparator: ControllerSpec,
+    criteria: FailureConfig,
+    counter: SimulationCounter,
+) -> EvaluationRecord:
     before = counter.used
     tested, tested_error, tested_audit = _run_spec(scenario, target)
     baseline = None
@@ -262,6 +279,30 @@ def summarize(records: tuple[EvaluationRecord, ...], budget: SearchConfig) -> di
         "unique_failure_cases": len({record.scenario_id for record in failures}),
         "actionable_cases": len(actionable),
         "unique_actionable_cases": len({record.scenario_id for record in actionable}),
+        "worst_actionable_score": list(
+            max((actionable_score(record.report) for record in complete), default=(0, 0.0, 0.0))
+        ),
+        "reserve_classifications": {
+            label: sum(
+                f.kind == "reserve_shortfall" and f.classification == label
+                for record in complete
+                for f in record.report.findings
+            )
+            for label in (
+                "locally_preventable",
+                "physically_impossible",
+                "undetermined",
+                "model_failure_fallback",
+            )
+        },
+        "actionable_failure_types": sorted(
+            {
+                f.kind
+                for record in complete
+                for f in record.report.findings
+                if f.kind != "reserve_shortfall" or f.classification == "locally_preventable"
+            }
+        ),
         "failure_types": sorted(
             {finding.kind for record in failures for finding in record.report.findings}
         ),
@@ -294,6 +335,21 @@ class SearchResult:
         return canonical(self.to_dict())
 
 
+def _next_generated_candidate(
+    method: str,
+    domain: ScenarioDomain,
+    budget: SearchConfig,
+    rng: Random,
+    records: list[EvaluationRecord],
+) -> tuple[Scenario, str, str | None]:
+    parents = [record for record in records if record.report is not None]
+    if method != "targeted" or not parents or rng.random() < budget.random_exploration_probability:
+        return sample_scenario(domain, rng), "random", None
+    elites = sorted(parents, key=lambda record: actionable_score(record.report), reverse=True)
+    parent = rng.choice(elites[: budget.population_size])
+    return mutate_scenario(parent.scenario, domain, rng), "mutation", parent.scenario_id
+
+
 def run_search(
     method: str,
     domain: ScenarioDomain,
@@ -304,8 +360,8 @@ def run_search(
     *,
     fixed_scenarios: tuple[Scenario, ...] = (),
 ) -> SearchResult:
-    if method not in ("fixed", "random"):
-        raise ValueError("method must be fixed or random")
+    if method not in ("fixed", "random", "targeted"):
+        raise ValueError("method must be fixed, random or targeted")
     if target.horizon != comparator.horizon:
         raise ValueError("target and comparator must declare the same information horizon")
     if method == "fixed" and not fixed_scenarios:
@@ -316,14 +372,23 @@ def run_search(
     records = []
     with count_simulator_calls(budget.simulator_call_budget) as counter:
         while counter.used < counter.limit and len(records) < budget.max_candidates:
-            scenario = (
-                fixed_scenarios[len(records) % len(fixed_scenarios)]
-                if method == "fixed"
-                else sample_scenario(domain, rng)
-            )
+            if method == "fixed":
+                scenario = fixed_scenarios[len(records) % len(fixed_scenarios)]
+                source, parent_id = "fixed", None
+            else:
+                scenario, source, parent_id = _next_generated_candidate(
+                    method, domain, budget, rng, records
+                )
             records.append(
                 _evaluate(
-                    scenario, method, None, len(records) + 1, target, comparator, criteria, counter
+                    scenario,
+                    source,
+                    parent_id,
+                    len(records) + 1,
+                    target,
+                    comparator,
+                    criteria,
+                    counter,
                 )
             )
     return SearchResult(
@@ -337,7 +402,13 @@ def run_search(
     )
 
 
-def _verify_model_audit(text, scenario, episode, error, horizon):
+def _verify_model_audit(
+    text: str | None,
+    scenario: Scenario,
+    episode: Episode | None,
+    error: str | None,
+    horizon: int,
+) -> None:
     if text is None:
         return
     audit = require_keys(load_json(text), {"config", "decisions", "interruption"})
@@ -362,6 +433,7 @@ def _verify_model_audit(text, scenario, episode, error, horizon):
     history = []
     state = scenario.initial_state
     rng = Random(scenario.seed)
+    terminal_failure = False
     for index in range(len(decisions)):
         frame = ObservationFrame(
             index,
@@ -374,12 +446,17 @@ def _verify_model_audit(text, scenario, episode, error, horizon):
         try:
             action = controller.act(_bounded_observation(observation, horizon), rng)
         except ControllerCallFailure:
+            terminal_failure = True
             break
         if episode is not None and action != episode.trace[index].result.requested_action:
             raise ValueError("model audit action differs from episode")
         state = step(scenario.config, state, action, StepInput(frame.price_eur_per_mwh)).state
         history.append(frame)
     model.assert_consumed()
+    if terminal_failure and (episode is not None or error != "model_call_failure"):
+        raise ValueError("failed model dispatch cannot accompany a completed episode")
+    if error == "model_call_failure" and not terminal_failure:
+        raise ValueError("model-call failure requires a failed recorded decision")
     expected = {
         "config": asdict(config),
         "decisions": [asdict(d) for d in controller.records],
@@ -400,7 +477,7 @@ def verify_search_result(text: str) -> dict:
     data = require_keys(load_json(text), {f.name for f in fields(SearchResult)} | {"summary"})
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise ValueError("unsupported search schema_version")
-    if data["method"] not in ("fixed", "random"):
+    if data["method"] not in ("fixed", "random", "targeted"):
         raise ValueError("unsupported search method")
     domain = ScenarioDomain.from_dict(data["domain"])
     criteria = FailureConfig(
@@ -429,6 +506,7 @@ def verify_search_result(text: str) -> dict:
         raise ValueError("search records must be a nonempty array")
     records = []
     cumulative = 0
+    replay_rng = Random(budget.seed)
     for index, value in enumerate(data["records"], 1):
         item = dict(require_keys(value, {f.name for f in fields(EvaluationRecord)}))
         scenario = Scenario.from_dict(item["scenario"])
@@ -448,8 +526,19 @@ def verify_search_result(text: str) -> dict:
             raise ValueError("search exceeds declared budget")
         if item["scenario_id"] != scenario_fingerprint(scenario):
             raise ValueError("environment fingerprint mismatch")
-        if item["source"] != data["method"] or item["parent_id"] is not None:
-            raise ValueError("invalid candidate source/parent")
+        if data["method"] == "fixed":
+            if item["source"] != "fixed" or item["parent_id"] is not None:
+                raise ValueError("invalid fixed candidate source/parent")
+        else:
+            expected_scenario, expected_source, expected_parent = _next_generated_candidate(
+                data["method"], domain, budget, replay_rng, records
+            )
+            if (
+                scenario != expected_scenario
+                or item["source"] != expected_source
+                or item["parent_id"] != expected_parent
+            ):
+                raise ValueError("candidate does not match seeded generation/selection")
         tested = (
             Episode.from_dict(item["target_episode"])
             if item["target_episode"] is not None
