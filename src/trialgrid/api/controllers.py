@@ -7,6 +7,11 @@ from trialgrid.controllers.llm import canonical
 from trialgrid.runner import Controller, HoldController
 
 CONTROLLERS = ("hold", "heuristic", "forecast_optimizer")
+CONTROLLER_VERSIONS = {
+    "hold": "m2-hold-v1",
+    "heuristic": "m3-heuristic-v1",
+    "forecast_optimizer": "m3-forecast-optimizer-v1",
+}
 
 
 def build_controller(name: str, horizon: int) -> tuple[Controller, str]:
@@ -28,7 +33,7 @@ def build_controller(name: str, horizon: int) -> tuple[Controller, str]:
     metadata = canonical(
         {
             "name": name,
-            "version": "1",
+            "version": CONTROLLER_VERSIONS[name],
             "horizon": horizon,
             "configuration": configuration,
             "information_mode": "published_forecast_only",

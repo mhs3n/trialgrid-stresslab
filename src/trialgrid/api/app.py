@@ -96,11 +96,19 @@ def _run(request: RunRequest, created_at_utc: str | None = None) -> EvidenceArti
     criteria = FailureConfig(economic_threshold_eur=request.economic_threshold_eur)
     target, target_metadata = build_controller(request.target, request.horizon)
     comparator, comparator_metadata = build_controller(request.comparator, request.horizon)
+    target_version = load_json(target_metadata)["version"]
+    comparator_version = load_json(comparator_metadata)["version"]
     target_episode = run_episode(
-        scenario, target, controller_name=request.target, controller_version="1"
+        scenario,
+        target,
+        controller_name=request.target,
+        controller_version=target_version,
     )
     comparator_episode = run_episode(
-        scenario, comparator, controller_name=request.comparator, controller_version="1"
+        scenario,
+        comparator,
+        controller_name=request.comparator,
+        controller_version=comparator_version,
     )
     return EvidenceArtifact.create(
         scenario=scenario,

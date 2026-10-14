@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 
 from trialgrid.api.app import create_app
+from trialgrid.api.controllers import CONTROLLER_VERSIONS
 from trialgrid.domain import BatteryConfig, BatteryState
 from trialgrid.scenario import Scenario
 
@@ -52,6 +53,7 @@ def test_run_list_detail_and_offline_replay(tmp_path, monkeypatch):
     artifact_id = detail["id"]
     assert detail["replay_verified"] is True
     assert detail["report"]["findings"][0]["classification"] == "locally_preventable"
+    assert detail["target"]["metadata"]["version"] == CONTROLLER_VERSIONS["hold"]
 
     listed = api.get("/api/runs").json()["runs"]
     assert listed[0]["id"] == artifact_id
@@ -65,6 +67,24 @@ def test_run_list_detail_and_offline_replay(tmp_path, monkeypatch):
     assert rerun.json()["id"] != artifact_id
     assert rerun.json()["target"]["metrics"] == detail["target"]["metrics"]
     assert rerun.json()["report"] == detail["report"]
+
+
+def test_rerun_records_current_controller_version(tmp_path, monkeypatch):
+    api = client(tmp_path)
+    created = api.post(
+        "/api/runs",
+        json={
+            "scenario": scenario(),
+            "target": "hold",
+            "comparator": "forecast_optimizer",
+            "horizon": 2,
+            "economic_threshold_eur": 1.0,
+        },
+    ).json()
+    monkeypatch.setitem(CONTROLLER_VERSIONS, "hold", "m2-hold-v2-test")
+    rerun = api.post(f"/api/runs/{created['id']}/rerun")
+    assert rerun.status_code == 201
+    assert rerun.json()["target"]["metadata"]["version"] == "m2-hold-v2-test"
 
 
 def test_demo_is_deterministic_fixed_evidence(tmp_path):
