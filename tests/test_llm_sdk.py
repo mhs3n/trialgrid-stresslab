@@ -87,3 +87,8 @@ def test_installed_sdk_single_attempts_and_audited_recovery(failure):
     assert run.decisions[0].attempts[1].usage.input_tokens == 10
     assert run.episode.metrics.profit_eur == pytest.approx(0.1)
     assert replay_llm_run(run) == run
+
+
+def test_openai_compatible_base_url_is_forwarded():
+    model = OpenAIModel("test-only-placeholder", base_url="https://example.test/v1")
+    assert str(model._client.base_url).rstrip("/") == "https://example.test/v1"

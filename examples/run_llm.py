@@ -11,6 +11,13 @@ from trialgrid.controllers.llm_models import FakeModel, OpenAIModel
 from trialgrid.controllers.llm_types import LLMConfig, TokenPricing
 
 
+def output_token_limit(value: str) -> int:
+    parsed = int(value)
+    if not 16 <= parsed <= 32768:
+        raise argparse.ArgumentTypeError("max output tokens must be between 16 and 32768")
+    return parsed
+
+
 def environment_pricing() -> TokenPricing | None:
     names = (
         "TRIALGRID_INPUT_USD_PER_MILLION",
@@ -39,6 +46,7 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("llm_results"))
     parser.add_argument("--horizon", type=int, choices=range(1, 7), default=4)
     parser.add_argument("--max-attempts", type=int, choices=range(1, 6), default=3)
+    parser.add_argument("--max-output-tokens", type=output_token_limit, default=1024)
     parser.add_argument("--failure-policy", choices=("raise", "hold"), default="raise")
     args = parser.parse_args()
     if args.replay:
@@ -55,6 +63,7 @@ def main() -> int:
             model = OpenAIModel(
                 api_key,
                 timeout_s=float(os.environ.get("TRIALGRID_LLM_TIMEOUT_S", "30")),
+                base_url=os.environ.get("TRIALGRID_LLM_BASE_URL") or None,
             )
             execution_mode = "openai"
         else:
@@ -66,6 +75,7 @@ def main() -> int:
             model_id=model_id,
             horizon=args.horizon,
             max_attempts=args.max_attempts,
+            max_output_tokens=args.max_output_tokens,
             failure_policy=args.failure_policy,
             retry_delay_s=0.5 if args.real else 0,
             pricing=pricing,
