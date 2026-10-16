@@ -130,7 +130,9 @@ Install the optional dependency; core simulation and CI do not require it:
 python -m pip install -e '.[llm]'
 ```
 
-Set `OPENAI_API_KEY` and `TRIALGRID_LLM_MODEL` in your local environment, then run:
+Set `OPENAI_API_KEY` and `TRIALGRID_LLM_MODEL` in your local environment, then run.
+For an OpenAI-compatible provider, set `TRIALGRID_LLM_BASE_URL` to its API base URL;
+the same structured Responses request and audit/replay path is used:
 
 ```bash
 python examples/run_llm.py --real --horizon 4 --max-attempts 3 \
@@ -143,6 +145,8 @@ For a known cost estimate, provide all of `TRIALGRID_INPUT_USD_PER_MILLION`,
 `TRIALGRID_CACHED_INPUT_USD_PER_MILLION`, `TRIALGRID_OUTPUT_USD_PER_MILLION`, and
 `TRIALGRID_PRICING_SOURCE`, or leave all unset for unknown cost. The prompt/output
 budget may need adjustment for reasoning models through `LLMConfig.max_output_tokens`.
+`TRIALGRID_LLM_TIMEOUT_S` optionally sets the timeout (default 30), and
+`TRIALGRID_LLM_BASE_URL` optionally selects an OpenAI-compatible endpoint.
 No `.env` file is automatically loaded and no credentials belong in git.
 
 M4 does not add M5 search, failure predicates, a frontend, or a server API. Real

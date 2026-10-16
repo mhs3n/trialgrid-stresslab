@@ -19,9 +19,18 @@ def _request(text: str) -> dict:
 class OpenAIModel:
     """One observable SDK attempt per call; import the optional SDK only on construction."""
 
-    def __init__(self, api_key: str, timeout_s: float = 30.0, *, client=None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        timeout_s: float = 30.0,
+        *,
+        base_url: str | None = None,
+        client=None,
+    ) -> None:
         if not isinstance(api_key, str) or not api_key.strip():
             raise ValueError("api_key must be nonempty")
+        if base_url is not None and (not isinstance(base_url, str) or not base_url.strip()):
+            raise ValueError("base_url must be nonempty when provided")
         nonnegative("timeout_s", timeout_s)
         if timeout_s == 0:
             raise ValueError("timeout_s must be positive")
@@ -31,11 +40,13 @@ class OpenAIModel:
             if exc.name != "openai":
                 raise
             raise ImportError("Install trialgrid[llm] to use OpenAIModel") from None
-        self._client = (
-            client.with_options(max_retries=0, timeout=timeout_s)
-            if client is not None
-            else self._sdk.OpenAI(api_key=api_key, max_retries=0, timeout=timeout_s)
-        )
+        if client is not None:
+            self._client = client.with_options(max_retries=0, timeout=timeout_s)
+        else:
+            options = {"api_key": api_key, "max_retries": 0, "timeout": timeout_s}
+            if base_url is not None:
+                options["base_url"] = base_url
+            self._client = self._sdk.OpenAI(**options)
 
     def complete(self, request_json: str) -> ModelReply:
         payload = _request(request_json)
