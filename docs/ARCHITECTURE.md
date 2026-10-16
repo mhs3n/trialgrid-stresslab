@@ -175,5 +175,8 @@ actions, physical violations and reserve shortfalls. Replay verifies recorded ev
 rerun executes the saved scenario against current allowlisted controller code and saves
 a new artifact. Unknown values remain null rather than becoming zero.
 
-M6 remains unimplemented. M7 can inspect, replay and rerun full cases, but does not
-claim that cases are minimized or exported as pytest regressions.
+`search/shrink.py` adds bounded deterministic shrinking that re-runs the declared
+controllers and preserves an actionable failure signature. `regression.py` stores a
+version-1 scenario/metadata/predicate fixture and can generate an offline pytest
+module for the allowlisted controllers. Live LLM factories are not serialized into
+regression tests.

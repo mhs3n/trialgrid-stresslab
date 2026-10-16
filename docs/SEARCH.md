@@ -99,6 +99,24 @@ remain explicitly incomplete. Internal planner counts and exception provenance
 are reported measurements, not authenticated by recorded dispatch actions.
 Verification checks internal consistency, not cryptographic authenticity.
 
+## M6 shrinking and regression export
+
+`trialgrid.search.shrink.shrink_failure` accepts a completed `EvaluationRecord` and
+re-runs its target and comparator for every candidate. It keeps the original seed,
+hour count and forecast publication shape, and greedily moves initial energy toward
+the floor, prices/forecasts toward zero, and reserves toward zero. A candidate is
+accepted only when the same actionable `(finding kind, classification)` signature
+reproduces. The attempt budget is explicit; `complete=false` means the result is not
+eligible for export. `repetitions` can require the predicate to reproduce on every
+fresh controller run, which is useful for stochastic controllers.
+
+`trialgrid.regression.RegressionFixture` stores the minimized scenario, controller
+metadata, criteria, signature and repetition policy as version-1 JSON. Exported
+pytest modules resolve only the allowlisted offline `hold`, `heuristic` and
+`forecast_optimizer` versions. Unknown versions and live LLM factories are rejected.
+The generated test reruns the fixture and fails if the original actionable signature
+no longer appears; this tests the failure against the current controller code.
+
 Summaries report unique raw/actionable cases, predicate types, reserve classifications,
 worst actionable score, incomplete evaluations, model failures/fallbacks, and the
 completed evaluation/cumulative calls at first actionable discovery. This is not
@@ -136,8 +154,10 @@ found three each. Targeted-minus-random was zero. These tiny synthetic experimen
 establish no targeted-search advantage or population-level superiority. The fixed
 suite is identical across seeds and is not three independent datasets.
 
-Before expanding search or moving to M6, revisit domains/criteria and evaluate
-predeclared larger budgets with held-out configurations. Any tuning must be
-reported separately. No shrinking, frontend, server API or live-model search was
-implemented. The requested paid smoke test remains pending model/budget details
-and local API configuration; it is separate from these offline experiments.
+Before expanding search, revisit domains/criteria and evaluate predeclared larger
+budgets with held-out configurations. Any tuning must be reported separately. The
+shrinker does not claim a globally minimal case: it is bounded and greedy, and its
+predicate signature intentionally preserves failure type/classification rather than
+exact severity or failure hour. The requested paid smoke test remains pending
+model/budget details and local API configuration; it is separate from these offline
+experiments.
