@@ -171,15 +171,25 @@ the search method or making comparative claims.
 **Done when:** equal-budget comparison can be run from one command and produces honest, reproducible summary.
 
 ## M6 — Shrinking and regression export
-**Status:** Not implemented. M7 was explicitly authorized first; M7 does not absorb
-or imply this milestone's shrinking and pytest export work.
+**Status:** Complete. Added bounded deterministic shrinking over initial energy,
+realized prices, published forecasts and reserve requirements. Candidates preserve
+the original seed and timeline shape and are accepted only when the same actionable
+finding kind/classification signature reproduces. Repeated verification is available
+for stochastic controllers. Added version-1 JSON regression fixtures and generated
+offline pytest modules for the allowlisted hold, heuristic and forecast optimizer
+controllers; live LLM/controller factories are rejected during export.
+
+Validation:
+- `.venv/bin/python -m pytest tests/test_shrink.py -q`: 4 passed.
+- `.venv/bin/python -m pytest`: 652 passed, including all 648 M7 tests.
+- `.venv/bin/ruff check .` and `git diff --check`: passed.
 
 - Shrink disturbances while preserving predicate; export case JSON and pytest regression.
 **Done when:** a detected failure reproduces from fixture and is flagged against the defective controller.
 
 ## M7 — Evidence report and demo
-**Status:** Evidence viewer implemented for review; full roadmap completion remains
-gated by M6 regression export.
+**Status:** Complete (merged in PR #13). The evidence viewer/API now sits above the
+replayable M6 cases; M6 regression export is available as a separate library path.
 
 - Versioned content-addressed target/comparator artifacts replay both episodes and
   recompute the failure report before exposing metrics.
@@ -190,7 +200,7 @@ gated by M6 regression export.
   forecasts, energy, reserves, requested/applied actions and violation events.
 - Deterministic one-command fixed-case demo and `docs/EVIDENCE_REPORT.md` retain the
   M5 negative result and label the forecast optimizer as a non-oracle approximation.
-- No authentication, database, cloud deployment, shrinking or regression export.
+- No authentication, database, or cloud deployment.
 
 Validation on Python 3.12.3 and Node 20.19.6:
 - `.venv/bin/python -m pytest`: 648 passed, retaining all 631 M5 tests.
@@ -202,7 +212,7 @@ Validation on Python 3.12.3 and Node 20.19.6:
 
 - API to run and replay cases; React plots for price, SoC, actions, commitments and violation events.
 - Technical evaluation report and repeatable one-command demonstration.
-**Done when:** a reviewer can reproduce a failure, inspect its cause, apply a fix and re-run regression tests. The API/UI and current-controller case rerun are present; standalone minimized pytest regression export remains M6 work, so this final criterion is not yet fully met.
+**Done when:** a reviewer can reproduce a failure, inspect its cause, apply a fix and re-run regression tests. The API/UI, current-controller rerun, shrinking and standalone pytest regression export are present.
 
 ## Stop/go gates
 

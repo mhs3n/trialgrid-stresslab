@@ -239,7 +239,7 @@ def artifact_detail(artifact: EvidenceArtifact, *, replay_verified: bool = True)
             "Replay verifies internal consistency, not artifact authenticity.",
             "Positive power discharges; negative power charges.",
             "Reserve requirements are post-step energy commitments.",
-            "M6 shrinking and pytest regression export are not included.",
+            "M6 shrinking and pytest regression export are separate offline workflows.",
         ],
     }
 

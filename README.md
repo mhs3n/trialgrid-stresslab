@@ -24,9 +24,9 @@ See [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Product Requirements](d
 
 ## Current milestone
 
-M7 adds a local evidence API and React replay viewer over the existing deterministic
-runner. Evidence is replay-verified before metrics reach the UI. M6 shrinking and
-pytest regression export remain deliberately separate and unimplemented.
+M6 shrinking and offline pytest regression export are complete. M7 adds a local
+evidence API and React replay viewer over the existing deterministic runner.
+Evidence is replay-verified before metrics reach the UI.
 
 ## Quick start
 
@@ -231,6 +231,32 @@ The initial small experiment found no targeted-search advantage. See
 [M5 contracts, replay and measured results](docs/SEARCH.md) before interpreting
 counts or expanding budgets. The CLI also supports offline `--target hold` and
 `--target fake-llm`; it does not initiate paid model calls.
+
+## Shrink a failure and export a regression
+
+M6 provides a bounded library workflow for completed search records. It preserves
+the original seed and timeline shape, and accepts a candidate only when the same
+actionable finding kind/classification signature reproduces:
+
+```python
+from trialgrid.regression import RegressionFixture, export_pytest_regression
+from trialgrid.search.shrink import ShrinkConfig, shrink_failure
+
+result = shrink_failure(
+    record, target_spec, comparator_spec, criteria,
+    config=ShrinkConfig(max_attempts=500, repetitions=2),
+)
+fixture = RegressionFixture.from_shrink(
+    result, target_spec.metadata_json(), comparator_spec.metadata_json(), criteria,
+)
+export_pytest_regression(
+    fixture, "tests/regressions/case.json", "tests/regressions/test_case.py",
+)
+```
+
+Exported tests use only the versioned offline hold, heuristic and forecast optimizer
+controllers. A bounded greedy result is not claimed to be globally minimal, and
+incomplete shrink results cannot be exported.
 
 ## Inspect and rerun evidence locally
 
